@@ -43,7 +43,7 @@ async def run_pipeline(
 
     # Optionally enrich with MCP market data (best-effort, non-fatal)
     pm_trading_context = {}
-    prices = None
+    year_prices = None
     if use_mcp and research.ticker_symbol:
         logger.info("[2/8] Fetching market artifacts via tools")
         try:
@@ -57,11 +57,11 @@ async def run_pipeline(
                 pass
             # If prices were fetched, load once and pass to risk to avoid re-read later
             try:
-                p_path = artifacts.get("prices")
-                if p_path:
-                    prices = json.loads(Path(p_path).read_text(encoding="utf-8"))
+                year_prices_path = artifacts.get("year_prices")
+                if year_prices_path:
+                    year_prices = json.loads(Path(year_prices_path).read_text(encoding="utf-8"))
             except Exception:
-                prices = None
+                year_prices = None
             pm_trading_context["market_artifacts"] = artifacts
         except Exception as e:
             logger.warning("Market artifact fetch failed: %s", e)
@@ -82,7 +82,7 @@ async def run_pipeline(
     logger.info("[4/8] Proposing portfolio (lang=%s)", language)
     proposal = await propose_portfolio(research, context=pm_trading_context or None, language=language, use_mcp=use_mcp)
     logger.info("[5/8] Computing risk & compliance")
-    risk = compute_risk_check(research, proposal, instrument=instrument, as_of=as_of, root=root, prices=prices)
+    risk = compute_risk_check(research, proposal, instrument=instrument, as_of=as_of, root=root, prices=year_prices)
     compliance = run_compliance_check(research, proposal)
     logger.info("[6/8] Planning trading")
     trading = await plan_trading(research, proposal, context=pm_trading_context or None, language=language, use_mcp=use_mcp)

@@ -139,12 +139,13 @@ async def fetch_and_write_market_artifacts(
         return await asyncio.gather(
             _safe_call(tools.get("get_current_stock_price"), {"ticker": ticker}),
             _safe_call(tools.get("get_historical_stock_prices"), {"ticker": ticker, "start_date": (datetime.now() - relativedelta(days=120)).strftime('%Y-%m-%d'), "end_date": datetime.today().strftime('%Y-%m-%d'), "interval": "day"}),
+            _safe_call(tools.get("get_historical_stock_prices"), {"ticker": ticker, "start_date": (datetime.now() - relativedelta(years=20)).strftime('%Y-%m-%d'), "end_date": datetime.today().strftime('%Y-%m-%d'), "interval": "month"}),
             _safe_call(tools.get("get_income_statements"), {"ticker": ticker}),
             _safe_call(tools.get("get_company_news"), {"ticker": ticker}),
             _safe_call(tools.get("get_sec_filings"), {"ticker": ticker}),
         )
 
-    quote, prices, income, news, filings = await _gather()
+    quote, prices, year_prices, income, news, filings = await _gather()
 
     def _write(name: str, obj: Optional[Dict[str, Any]]) -> Optional[str]:
         if not obj:
@@ -158,6 +159,7 @@ async def fetch_and_write_market_artifacts(
 
     out["quote"] = _write("quote", quote)
     out["prices"] = _write("prices", prices)
+    out["year_prices"] = _write("year_prices", year_prices)
     out["financials_income"] = _write("financials_income", income)
     out["news"] = _write("news", news)
     out["filings"] = _write("filings", filings)

@@ -1,13 +1,14 @@
 from __future__ import annotations
 
-from datetime import datetime
 from pathlib import Path
-from typing import List, Optional
+from typing import Optional
 
-from .schemas import ComplianceCheck, Proposal, ResearchMemo, RiskCheck, StressResult
+from .schemas import ComplianceCheck, Proposal, ResearchMemo, RiskCheck
 
 
-def _load_prices_if_any(instrument: Optional[str], as_of: Optional[str], root: str) -> Optional[dict]:
+def _load_prices_if_any(
+    instrument: Optional[str], as_of: Optional[str], root: str
+) -> Optional[dict]:
     if not instrument or not as_of:
         return None
     p = Path(root) / "market" / instrument / f"prices_{as_of}.json"
@@ -15,35 +16,42 @@ def _load_prices_if_any(instrument: Optional[str], as_of: Optional[str], root: s
         return None
     try:
         import json
+
         return json.loads(p.read_text(encoding="utf-8"))
     except Exception:
         return None
 
 
-def _extract_series(prices: dict) -> Optional[tuple[list, list]]:
+def _extract_series(prices: list) -> Optional[tuple[list, list]]:
+    """Extract close price series (and volumes if present) from multiple shapes.
+
+    Supported inputs:
+    - list of OHLC rows: [{close|price, volume?, ...}, ...]
+    - dict with {raw: [{data: [rows...]}]}
+    - dict with {data: [rows...]}
+    - dict with {series: [numbers...]}
+    """
     try:
-        # Expect a list of blocks with data; try to locate close/volume series
-        series = []
-        volumes = []
-        for blk in prices.get("raw") or []:
-            data = blk.get("data") or {}
-            if isinstance(data, list):
-                for row in data:
-                    px = row.get("close") or row.get("price")
-                    if isinstance(px, (int, float)):
-                        series.append(float(px))
-                    vol = row.get("volume")
-                    if isinstance(vol, (int, float)):
-                        volumes.append(float(vol))
-        if len(series) < 30:
-            return None
-        return series, volumes
+        series: list[float] = []
+        volumes: list[float] = []
+
+        # Case 1: list of rows
+        for row in prices:
+            px = row.get("close") 
+            if isinstance(px, (int, float)):
+                series.append(float(px))
+            vol = row.get("volume")
+            if isinstance(vol, (int, float)):
+                volumes.append(float(vol))
+        return (series, volumes) if len(series) >= 30 else None
     except Exception:
         return None
 
 
-def _compute_var_drawdown_from_series(series: list[float], target_weight: float) -> tuple[float, Optional[float], Optional[float]]:
-    # Returns: (var_95, mdd, sigma_ewma)
+def _compute_var_drawdown_from_series(
+    series: list[float], target_weight: float
+) -> tuple[float, Optional[float], Optional[float]]:
+    # Returns: (var_95_portfolio_scaled, mdd_asset_level, sigma_ewma_asset)
     # Daily returns
     rets = []
     for i in range(1, len(series)):
@@ -63,10 +71,12 @@ def _compute_var_drawdown_from_series(series: list[float], target_weight: float)
     sigma2 = 0.0
     for r in reversed(rets):
         sigma2 = lam * sigma2 + (1 - lam) * (r * r)
-    sigma = sigma2 ** 0.5
-    var_ewma = 1.65 * sigma * target_weight  # 1.65 ~ 95%
+    sigma = sigma2**0.5
+    var_ewma = (
+        1.65 * sigma * target_weight
+    )  # 1.65 ~ 95%; VaR scaled by target weight (portfolio-level)
 
-    # Max drawdown
+    # Max drawdown (asset-level, NOT scaled by target weight)
     peak = series[0]
     mdd = 0.0
     for px in series:
@@ -75,7 +85,7 @@ def _compute_var_drawdown_from_series(series: list[float], target_weight: float)
         dd = (px - peak) / peak
         if dd < mdd:
             mdd = dd
-    mdd = abs(mdd) * target_weight
+    mdd = abs(mdd)
 
     return round(max(var_emp, var_ewma), 4), round(mdd, 4), round(sigma, 6)
 
@@ -104,19 +114,22 @@ def compute_risk_check(
             var, mdd2, sigma = _compute_var_drawdown_from_series(series, target_weight)
             var_from_prices, mdd, sigma_ewma = var, mdd2, sigma
 
-    # heuristic baseline daily var ~1.8% at 3.5% weight
-    base_var = var_from_prices if var_from_prices is not None else 0.018 * (target_weight / 0.035 if 0.035 else 1.0)
+    # heuristic baseline daily var ~1.8% at 3.5% weight (portfolio-level)
+    base_var = (
+        var_from_prices
+        if var_from_prices is not None
+        else 0.018 * (target_weight / 0.035 if 0.035 else 1.0)
+    )
 
-    stress: List[StressResult] = [
-        StressResult(name="2008", pnl=-(target_weight * 0.7)),
-        StressResult(name="COVID-2020", pnl=-(target_weight * 0.45)),
-    ]
+    # Stress scenarios expressed as asset-level moves (not scaled by target weight)
 
     breach_limits = target_weight > max_single or base_var > 0.035
 
     notes = []
     if target_weight > max_single:
-        notes.append(f"target_weight {target_weight:.3f} > max_single_name {max_single:.3f}")
+        notes.append(
+            f"target_weight {target_weight:.3f} > max_single_name {max_single:.3f}"
+        )
     if base_var > 0.035:
         notes.append(f"var_95 {base_var:.3f} exceeds soft cap 3.5%")
     if mdd is not None:
@@ -127,7 +140,6 @@ def compute_risk_check(
     return RiskCheck(
         var_95=round(base_var, 4),
         max_drawdown=mdd,
-        stress=stress,
         breach=breach_limits,
         notes="; ".join(notes) if notes else None,
     )
@@ -136,7 +148,11 @@ def compute_risk_check(
 def run_compliance_check(research: ResearchMemo, proposal: Proposal) -> ComplianceCheck:
     # Minimal MVP: no restricted list, always allowed unless explicit red flags in memo
     red_flags = {"insider", "non-public", "restricted", "sanction"}
-    memo_text = (research.thesis + " " + research.antithesis + " ".join(research.risks)).lower()
+    memo_text = (
+        research.thesis + " " + research.antithesis + " ".join(research.risks)
+    ).lower()
     restricted = any(flag in memo_text for flag in red_flags)
-    notes = "auto-pass" if not restricted else "potential red flags detected in memo text"
+    notes = (
+        "auto-pass" if not restricted else "potential red flags detected in memo text"
+    )
     return ComplianceCheck(restricted=restricted, notes=notes)

@@ -2,6 +2,8 @@
 
 ## Disclaimer: This project is intended solely for learning and researching AI technology and should not be used as a basis for actual investment decisions. The author assumes no responsibility for any losses incurred if you make investments based on this project. Investment carries risk, please exercise caution.
 
+## Note: The generated report data may not be 100% accurate, please use your own judgment.
+
 End-to-end, auditable research-to-execution pipeline for a value-investing, risk-first fund workflow. It produces:
 
 - Research memo, valuation highlights, and scenarios (bear/base/bull)

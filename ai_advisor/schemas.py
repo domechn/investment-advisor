@@ -41,15 +41,9 @@ class Proposal(BaseModel):
     constraints: Dict[str, float] = Field(default_factory=dict)
 
 
-class StressResult(BaseModel):
-    name: str
-    pnl: float
-
-
 class RiskCheck(BaseModel):
     var_95: float
     max_drawdown: Optional[float] = None
-    stress: List[StressResult] = Field(default_factory=list)
     breach: bool = False
     notes: Optional[str] = None
 
