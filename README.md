@@ -16,6 +16,11 @@ End-to-end, auditable research-to-execution pipeline for a value-investing, risk
 
 [example](examples/en/TESLA/report_2025-08-31.md)
 
+## Market Coverage
+
+- Supported markets: U.S. equities (NASDAQ/NYSE) and Hong Kong equities (HKEX).
+- Tip: When using MCP, ensure your data provider/server supports the target market and ticker format. Common formats include TSLA (U.S.) and 1211 HK or 1211.HK (HKEX), depending on the provider.
+
 ## Architecture Overview
 
 - Orchestrator: drives the pipeline and writes artifacts to `knowledge/`

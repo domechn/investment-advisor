@@ -16,6 +16,11 @@
 
 [示例](examples/zh/特斯拉/report_2025-08-31.md)
 
+## 覆盖市场
+
+- 支持市场：美国股票（NASDAQ/NYSE）与香港股票（HKEX）。
+- 提示：使用 MCP 时，请确保您的数据提供商/服务器支持目标市场和代码格式。常见格式包括 TSLA（美股），1211 HK 或 1211.HK（港股），具体格式取决于数据源。
+
 ## 架构总览
 
 - Orchestrator：驱动流程并将产物写入 `knowledge/`
@@ -73,6 +78,11 @@ python main.py --instrument "Analyze TESLA" --advice --report --lang en
 ```
 
 输出将写入 `knowledge/` 目录。
+
+## 市场覆盖范围
+
+- 当前支持：美股（NASDAQ/NYSE）与港股（HKEX）。
+- 提示：启用 MCP 时，请确认数据源/服务器支持目标市场与代码格式。常见格式示例：TSLA（美股），1211 HK 或 1211.HK（港股，视数据源而定）。
 
 ## MCP 集成
 
