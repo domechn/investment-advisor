@@ -1,0 +1,20 @@
+langchain>=0.3.27
+langchain-openai>=0.3.32
+openai>=1.102.0
+pydantic>=2.11.7
+python-dotenv>=1.1.1
+langchain-mcp-adapters>=0.1.9
+# MCP stdio client core
+mcp>=1.13.1
+
+# Optional for MCP client (only needed when --use-mcp)
+# langchain-mcp-adapters>=0.1.9
+
+# For report charts (PNG rendering)
+matplotlib>=3.10.6
+
+# Numeric helpers for charts/stats
+numpy>=2.3.2
+
+# For tool-using REACT agents
+langgraph>=0.6.6
